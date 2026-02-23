@@ -6,7 +6,7 @@ import sys
 import os
 
 # Add the project directory to the Python path
-project_home = '/home/YOUR_PYTHONANYWHERE_USERNAME/ParaglidingTracking'
+project_home = '/home/dittrime/ParaglidingTracking'
 if project_home not in sys.path:
     sys.path.insert(0, project_home)
 

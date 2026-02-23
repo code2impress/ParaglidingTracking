@@ -252,6 +252,35 @@ def api_flights(zone_id):
     return jsonify(result)
 
 
+@app.route("/api/flights/all")
+@login_required
+def api_flights_all():
+    """Return all active paragliders in the given map viewport bounding box."""
+    try:
+        min_lat = float(request.args["min_lat"])
+        max_lat = float(request.args["max_lat"])
+        min_lon = float(request.args["min_lon"])
+        max_lon = float(request.args["max_lon"])
+    except (KeyError, ValueError):
+        return jsonify({"error": "min_lat, max_lat, min_lon, max_lon required"}), 400
+
+    pilots = get_paragliders(min_lat, max_lat, min_lon, max_lon)
+    result = []
+    for p in pilots:
+        result.append({
+            "key":    p["_key"],
+            "name":   p["_name"],
+            "alt":    p["_alt"],
+            "speed":  p["_speed"],
+            "vspeed": p.get("_vspeed"),
+            "lat":    p["_lat"],
+            "lon":    p["_lon"],
+            "type":   p.get("_object_type"),
+            "age":    p.get("_age"),
+        })
+    return jsonify({"count": len(result), "pilots": result})
+
+
 # ── Monitoring endpoint (called by external cron) ─────────────────────────────
 
 @app.route("/api/check", methods=["POST"])

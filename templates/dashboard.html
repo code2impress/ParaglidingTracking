@@ -33,10 +33,18 @@
     <button id="btn-cancel-draw" class="btn btn-sm btn-outline-secondary d-none">
       <i class="bi bi-x-lg"></i> Cancel
     </button>
-    <button id="btn-refresh" class="btn btn-sm btn-outline-success ms-auto">
-      <i class="bi bi-arrow-clockwise"></i> Refresh flights
-    </button>
-    <span id="last-refresh" class="text-muted small"></span>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button id="btn-view-all" class="btn btn-sm btn-outline-warning">
+        <i class="bi bi-globe"></i> View all gliders
+      </button>
+      <button id="btn-clear-all" class="btn btn-sm btn-outline-secondary d-none">
+        <i class="bi bi-x-lg"></i> Clear
+      </button>
+      <button id="btn-refresh" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+      </button>
+      <span id="last-refresh" class="text-muted small"></span>
+    </div>
   </div>
 
   <!-- Main area -->

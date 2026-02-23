@@ -345,8 +345,97 @@ async function toggleZone(zoneId) {
 // ── Refresh button ────────────────────────────────────────────────────────────
 
 document.getElementById('btn-refresh').addEventListener('click', () => {
-  if (selectedZoneId) loadFlights(selectedZoneId);
-  else setStatus('Select a zone first.');
+  if (viewAllActive) loadAllGliders();
+  else if (selectedZoneId) loadFlights(selectedZoneId);
+  else setStatus('Select a zone or click "View all gliders".');
+});
+
+// ── View All Gliders ──────────────────────────────────────────────────────────
+
+let viewAllActive   = false;
+let viewAllMarkers  = [];
+let viewAllTimer    = null;
+
+document.getElementById('btn-view-all').addEventListener('click', () => {
+  viewAllActive = true;
+  document.getElementById('btn-view-all').classList.add('d-none');
+  document.getElementById('btn-clear-all').classList.remove('d-none');
+  // Deselect any zone
+  document.querySelectorAll('.zone-card.selected').forEach(c => c.classList.remove('selected'));
+  clearRefreshTimer();
+  loadAllGliders();
+  viewAllTimer = setInterval(loadAllGliders, 60_000);
+});
+
+document.getElementById('btn-clear-all').addEventListener('click', () => {
+  clearViewAll();
+  setStatus('Ready.');
+});
+
+function clearViewAll() {
+  viewAllActive = false;
+  viewAllMarkers.forEach(m => map.removeLayer(m));
+  viewAllMarkers = [];
+  if (viewAllTimer) { clearInterval(viewAllTimer); viewAllTimer = null; }
+  document.getElementById('btn-view-all').classList.remove('d-none');
+  document.getElementById('btn-clear-all').classList.add('d-none');
+}
+
+async function loadAllGliders() {
+  const b = map.getBounds();
+  const params = new URLSearchParams({
+    min_lat: b.getSouth().toFixed(6),
+    max_lat: b.getNorth().toFixed(6),
+    min_lon: b.getWest().toFixed(6),
+    max_lon: b.getEast().toFixed(6),
+  });
+
+  setStatus('Loading all gliders in view…');
+  viewAllMarkers.forEach(m => map.removeLayer(m));
+  viewAllMarkers = [];
+
+  try {
+    const resp = await fetch(`/api/flights/all?${params}`);
+    if (!resp.ok) { setStatus('Error loading gliders.'); return; }
+    const data = await resp.json();
+    const pilots = data.pilots || [];
+
+    if (pilots.length === 0) {
+      setStatus('No active paragliders / hang-gliders in view right now.');
+    } else {
+      pilots.forEach(p => {
+        if (p.lat == null || p.lon == null) return;
+        const typeLabel = p.type === 6 ? '🏄' : '🪂';
+        const icon = L.divIcon({
+          className: '',
+          html: `<span style="font-size:1.4rem">${typeLabel}</span>`,
+          iconSize: [24, 24], iconAnchor: [12, 12],
+        });
+        const ageMins = p.age != null ? Math.round(p.age / 60) : null;
+        const marker = L.marker([p.lat, p.lon], { icon })
+          .addTo(map)
+          .bindPopup(`
+            <div class="pilot-popup">
+              <h6 class="mb-1">${escHtml(p.name)}</h6>
+              <div><strong>Alt:</strong> ${p.alt != null ? p.alt + ' m' : 'n/a'}</div>
+              <div><strong>Speed:</strong> ${p.speed != null ? (p.speed * 3.6).toFixed(0) + ' km/h' : 'n/a'}</div>
+              <div><strong>Vario:</strong> ${p.vspeed != null ? p.vspeed + ' m/s' : 'n/a'}</div>
+              <div><strong>Last fix:</strong> ${ageMins != null ? ageMins + ' min ago' : 'n/a'}</div>
+              <div><strong>Type:</strong> ${p.type === 7 ? 'Paraglider' : p.type === 6 ? 'Hang-glider' : 'Unknown'}</div>
+            </div>`);
+        viewAllMarkers.push(marker);
+      });
+      setStatus(`${pilots.length} active paraglider${pilots.length !== 1 ? 's' : ''} / hang-glider${pilots.length !== 1 ? 's' : ''} in view.`);
+    }
+    lastRefresh.textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (err) {
+    setStatus('Network error: ' + err.message);
+  }
+}
+
+// Clear view-all markers when user pans/zooms and re-fetch for new area
+map.on('moveend', () => {
+  if (viewAllActive) loadAllGliders();
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -283,7 +283,7 @@ def api_flights_all():
 
 # ── Monitoring endpoint (called by external cron) ─────────────────────────────
 
-@app.route("/api/check", methods=["POST"])
+@app.route("/api/check", methods=["GET", "POST"])
 def api_check():
     provided_key = request.args.get("key", "")
     if provided_key != app.config["MONITOR_SECRET"]:

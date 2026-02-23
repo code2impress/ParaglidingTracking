@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Paragliding Tracker{% endblock %}
+
+{% block head %}
+<style>
+  #map { height: calc(100vh - 56px - 60px); min-height: 500px; }
+  #sidebar {
+    height: calc(100vh - 56px - 60px);
+    overflow-y: auto;
+    border-right: 1px solid #dee2e6;
+  }
+  .zone-card { cursor: pointer; transition: background 0.15s; }
+  .zone-card:hover { background: #f8f9fa; }
+  .zone-card.selected { border-left: 4px solid #0d6efd; }
+  .pilot-badge { font-size: 0.75rem; }
+  #statusbar {
+    height: 60px;
+    background: #212529;
+    color: #adb5bd;
+    font-size: 0.82rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column" style="height: calc(100vh - 56px);">
+
+  <!-- Top toolbar -->
+  <div class="d-flex align-items-center px-3 py-2 bg-light border-bottom gap-2">
+    <button id="btn-draw" class="btn btn-sm btn-primary">
+      <i class="bi bi-bounding-box"></i> Draw Zone
+    </button>
+    <button id="btn-cancel-draw" class="btn btn-sm btn-outline-secondary d-none">
+      <i class="bi bi-x-lg"></i> Cancel
+    </button>
+    <button id="btn-refresh" class="btn btn-sm btn-outline-success ms-auto">
+      <i class="bi bi-arrow-clockwise"></i> Refresh flights
+    </button>
+    <span id="last-refresh" class="text-muted small"></span>
+  </div>
+
+  <!-- Main area -->
+  <div class="d-flex flex-grow-1 overflow-hidden">
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="col-md-3 col-lg-2 p-0">
+      <div class="p-3 border-bottom bg-white">
+        <h6 class="mb-0 fw-semibold">My Zones</h6>
+      </div>
+      <div id="zone-list">
+        {% if not zones %}
+          <div class="p-3 text-muted small" id="empty-hint">
+            No zones yet. Click <strong>Draw Zone</strong> then drag a rectangle
+            on the map to create one.
+          </div>
+        {% endif %}
+        {% for zone in zones %}
+          <div class="zone-card p-3 border-bottom" data-zone-id="{{ zone.id }}"
+               data-bounds='{"min_lat":{{ zone.min_lat }},"max_lat":{{ zone.max_lat }},"min_lon":{{ zone.min_lon }},"max_lon":{{ zone.max_lon }}}'>
+            <div class="d-flex justify-content-between align-items-start">
+              <span class="fw-semibold small">{{ zone.name }}</span>
+              <div class="dropdown">
+                <button class="btn btn-link btn-sm p-0 text-muted"
+                        data-bs-toggle="dropdown">
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <button class="dropdown-item small btn-toggle-zone"
+                            data-zone-id="{{ zone.id }}">
+                      {% if zone.is_active %}
+                        <i class="bi bi-pause-fill"></i> Disable
+                      {% else %}
+                        <i class="bi bi-play-fill"></i> Enable
+                      {% endif %}
+                    </button>
+                  </li>
+                  <li>
+                    <button class="dropdown-item small text-danger btn-delete-zone"
+                            data-zone-id="{{ zone.id }}">
+                      <i class="bi bi-trash"></i> Delete
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <span class="badge {% if zone.is_active %}bg-success{% else %}bg-secondary{% endif %} mt-1">
+              {% if zone.is_active %}Active{% else %}Paused{% endif %}
+            </span>
+            <div class="pilot-list mt-2" id="pilots-{{ zone.id }}">
+              <span class="text-muted small">Click to load flights</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="flex-grow-1">
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div id="statusbar" class="d-flex align-items-center px-3">
+    <span id="status-text">Ready. Draw a zone or click a zone to load flights.</span>
+  </div>
+</div>
+
+<!-- Save Zone modal -->
+<div class="modal fade" id="saveZoneModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Name this zone</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="zone-name-input" class="form-control"
+               placeholder="e.g. Zugspitze area" maxlength="80">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btn-save-zone">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}

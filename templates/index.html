@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Paragliding Tracker — Live flight alerts{% endblock %}
+
+{% block content %}
+<div class="hero-section text-center py-5">
+  <div class="container">
+    <h1 class="display-4 fw-bold">🪂 Paragliding Tracker</h1>
+    <p class="lead mt-3 mb-4">
+      Draw a zone on the map. Get a Telegram message the moment a paraglider
+      appears, launches, or gains altitude — all for free.
+    </p>
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg me-2">
+        <i class="bi bi-map"></i> Open Dashboard
+      </a>
+    {% else %}
+      <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg me-2">
+        Get started free
+      </a>
+      <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">
+        Log in
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="container py-5">
+  <div class="row g-4 text-center">
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body py-4">
+          <div class="feature-icon mb-3">🗺️</div>
+          <h5 class="card-title">Draw your zone</h5>
+          <p class="card-text text-muted">
+            Use the map to draw a rectangle over any mountain or flying area.
+            Save up to 10 zones per account.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body py-4">
+          <div class="feature-icon mb-3">🛰️</div>
+          <h5 class="card-title">Live PureTrack data</h5>
+          <p class="card-text text-muted">
+            Flights are pulled from PureTrack every 5 minutes.
+            Paragliders are identified by altitude and speed heuristics.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body py-4">
+          <div class="feature-icon mb-3">📲</div>
+          <h5 class="card-title">Telegram alerts</h5>
+          <p class="card-text text-muted">
+            Receive instant Telegram messages when a pilot appears,
+            launches, or leaves the zone.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

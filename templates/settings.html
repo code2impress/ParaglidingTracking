@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Settings — Paragliding Tracker{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h4 class="mb-4">Settings</h4>
+
+  <!-- Account info -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header fw-semibold">Account</div>
+    <div class="card-body">
+      <p class="mb-1"><strong>Email:</strong> {{ current_user.email }}</p>
+      <p class="mb-0 text-muted small">
+        Registered {{ current_user.created_at.strftime('%d %b %Y') }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Telegram linking -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header fw-semibold d-flex align-items-center gap-2">
+      <i class="bi bi-telegram"></i> Telegram Notifications
+      {% if current_user.telegram_linked %}
+        <span class="badge bg-success ms-auto">Linked</span>
+      {% else %}
+        <span class="badge bg-secondary ms-auto">Not linked</span>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      {% if current_user.telegram_linked %}
+        <p class="text-success mb-3">
+          <i class="bi bi-check-circle-fill"></i>
+          Your Telegram account is connected. You will receive flight notifications.
+        </p>
+        <p class="mb-0 small text-muted">
+          To unlink, open Telegram and send <code>/stop</code> to the bot.
+        </p>
+      {% else %}
+        <p class="mb-3">
+          Link your Telegram account to receive instant flight alerts on your phone.
+        </p>
+
+        <ol class="mb-3">
+          <li>
+            Open Telegram and search for your bot
+            (the username you set when creating it via @BotFather).
+          </li>
+          <li>Start a chat with the bot by pressing <strong>Start</strong> or sending <code>/start</code>.</li>
+          <li>Send the following command to the bot:</li>
+        </ol>
+
+        <div class="bg-dark text-light rounded p-3 mb-3 d-flex align-items-center gap-3">
+          <code id="link-code-text" class="fs-5 text-warning">
+            /link {{ current_user.link_code }}
+          </code>
+          <button class="btn btn-outline-light btn-sm ms-auto" onclick="copyLinkCode()">
+            <i class="bi bi-clipboard"></i> Copy
+          </button>
+        </div>
+
+        <p class="text-muted small mb-0">
+          Your link code is unique to your account. Keep it private.
+          If you suspect it was shared, you can regenerate it below.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Danger zone -->
+  <div class="card border-danger shadow-sm">
+    <div class="card-header text-danger fw-semibold">Danger zone</div>
+    <div class="card-body">
+      <p class="mb-2 small">
+        Regenerating your link code will invalidate the old code.
+        You will need to re-link Telegram using the new code.
+      </p>
+      <form method="POST" action="{{ url_for('settings') }}">
+        <input type="hidden" name="action" value="regen_code">
+        <button type="submit" class="btn btn-outline-danger btn-sm"
+                onclick="return confirm('Regenerate link code? You will need to re-link Telegram.')">
+          Regenerate link code
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyLinkCode() {
+  const text = document.getElementById('link-code-text').innerText.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Copied to clipboard!');
+  });
+}
+</script>
+{% endblock %}

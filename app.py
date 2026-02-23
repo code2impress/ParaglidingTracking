@@ -238,7 +238,8 @@ def api_flights(zone_id):
     ).first_or_404()
 
     pilots = get_paragliders(zone.min_lat, zone.max_lat,
-                             zone.min_lon, zone.max_lon)
+                             zone.min_lon, zone.max_lon,
+                             app.config["PURETRACK_API_KEY"])
     result = []
     for p in pilots:
         result.append({
@@ -261,7 +262,8 @@ def api_check():
         abort(401)
 
     bot_token = app.config["TELEGRAM_BOT_TOKEN"]
-    result = monitor_engine.run_check(bot_token)
+    api_key   = app.config["PURETRACK_API_KEY"]
+    result = monitor_engine.run_check(bot_token, api_key)
     return jsonify(result)
 
 

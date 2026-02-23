@@ -20,7 +20,7 @@ ALTITUDE_JUMP_THRESHOLD = 300
 PILOT_TIMEOUT_MINUTES = 15
 
 
-def run_check(bot_token: str, api_key: str) -> dict:
+def run_check(bot_token: str) -> dict:
     """
     Main monitoring cycle.
 
@@ -46,7 +46,7 @@ def run_check(bot_token: str, api_key: str) -> dict:
 
         try:
             pilots = get_paragliders(
-                zone.min_lat, zone.max_lat, zone.min_lon, zone.max_lon, api_key
+                zone.min_lat, zone.max_lat, zone.min_lon, zone.max_lon
             )
         except Exception as exc:
             summary["errors"].append(f"Zone {zone.id}: {exc}")

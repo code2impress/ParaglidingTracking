@@ -1,160 +1,177 @@
 """
-PureTrack API client.
+OGN (Open Glider Network) live data client.
 
-Real endpoint: GET https://puretrack.io/api/traffic
-Parameters:
-  key   — PureTrack API key
-  lat1  — NE corner latitude   (max_lat)
-  long1 — NE corner longitude  (max_lon)
-  lat2  — SW corner latitude   (min_lat)
-  long2 — SW corner longitude  (min_lon)
-  t     — max age in minutes (default 5)
+Free, no API key required.  Covers all of Europe including the Alps.
 
-Response:
-{
-  "data": ["T1713592586,L47.63,G12.44,A1800,S4.2,V1.1,O7,KABCxyz,mPilotName,..."],
-  "success": true
-}
+Endpoint discovered from live.glidernet.org JavaScript source:
+  GET https://live.glidernet.org/lxml.php
+  ?a=1       show all aircraft (including recently offline)
+  &b=latMax  NE corner latitude
+  &c=latMin  SW corner latitude
+  &d=lonMax  NE corner longitude
+  &e=lonMin  SW corner longitude
 
-Each row is a compact comma-separated string where each token is:
-  T = unix timestamp
-  L = latitude
-  G = longitude
-  A = altitude (metres)
-  S = speed (m/s)
-  V = vertical speed (m/s)
-  C = course (degrees)
-  O = object type  (7 = paraglider / hang-glider)
-  K = unique tracker key
-  E = registration / callsign
-  m = display name / pilot name
+Response: XML  <markers><m a="lat,lon,cn,device,alt,time,age,track,speed,vario,type,..."/></markers>
+
+Field index in the comma-separated "a" attribute:
+  0  latitude   (decimal degrees)
+  1  longitude  (decimal degrees)
+  2  callsign / competition number
+  3  device ID
+  4  altitude   (metres MSL)
+  5  last fix time (HH:MM:SS UTC)
+  6  age        (seconds since last fix)
+  7  track      (degrees)
+  8  speed      (km/h)
+  9  vario      (m/s)
+  10 aircraft type (see OGN type codes below)
+  11 receiver station
+  12 ICAO hex (or 0)
+  13 OGN device ID
+
+OGN aircraft type codes:
+  1  glider / motor-glider
+  2  tow plane
+  3  helicopter
+  4  skydiver
+  5  drop plane
+  6  hang-glider
+  7  paraglider   <- main target
+  8  powered aircraft
+  9  jet
 """
 
+import xml.etree.ElementTree as ET
 import requests
 
-TRAFFIC_URL = "https://puretrack.io/api/traffic"
+OGN_URL = "https://live.glidernet.org/lxml.php"
 
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0 Safari/537.36"
+        "AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
     ),
-    "Referer": "https://puretrack.io/",
-    "Accept": "application/json",
+    "Referer": "https://live.glidernet.org/",
 }
 
-# PureTrack object type 7 = paraglider / hang-glider
-PARAGLIDER_TYPES = {7}
+# OGN type IDs we care about
+PARAGLIDER_TYPES = {6, 7}   # 6 = hang-glider, 7 = paraglider
 
-# Fallback heuristic (used when object type is absent in the record)
+# Heuristic fallback (when aircraft type field is 0 / absent)
 MIN_ALT_M    = 50
 MAX_ALT_M    = 7_000
-MAX_SPEED_MS = 25   # m/s ≈ 90 km/h
+MAX_SPEED_KH = 80    # km/h — paragliders rarely exceed this
+MAX_AGE_SECS = 600   # ignore fixes older than 10 minutes
 
 
-# ── Response parser ───────────────────────────────────────────────────────────
+# -- XML parser ----------------------------------------------------------------
 
-def _parse_record(record_str: str) -> dict:
-    """
-    Convert a compact PureTrack data string into a normalised dict.
-    Example input: "T1713592586,L47.63,G12.44,A1200,S3.1,V0.8,O7,KXYZabc,mHansPilot"
-    """
-    raw = {}
-    for token in record_str.split(","):
-        if len(token) >= 2:
-            raw[token[0]] = token[1:]
+def _parse_marker(attr: str) -> dict | None:
+    """Parse one OGN <m a="..."/> attribute string into a normalised dict."""
+    parts = attr.split(",")
+    if len(parts) < 10:
+        return None
 
-    lat   = float(raw["L"]) if "L" in raw else None
-    lon   = float(raw["G"]) if "G" in raw else None
-    alt   = float(raw["A"]) if "A" in raw else None
-    speed = float(raw["S"]) if "S" in raw else None
+    try:
+        lat    = float(parts[0])
+        lon    = float(parts[1])
+        cn     = parts[2].strip()
+        device = parts[3].strip()
+        alt    = float(parts[4]) if parts[4] else None
+        age    = int(parts[6])   if parts[6] else 9999
+        speed  = float(parts[8]) if parts[8] else None   # km/h
+        vario  = float(parts[9]) if parts[9] else None
+        atype  = int(parts[10])  if parts[10] else 0
+    except (ValueError, IndexError):
+        return None
 
-    # Best available display name: pilot name > registration > tracker key
-    name = raw.get("m") or raw.get("E") or raw.get("K", "Unknown")
-    key  = raw.get("K") or raw.get("E") or record_str[:24]
+    # Use callsign as display name; fall back to device ID
+    name = cn if cn and cn != "0" else device
 
     return {
-        "_key":         key,
-        "_name":        name,
+        "_key":         device or cn,
+        "_name":        name or "Unknown",
         "_lat":         lat,
         "_lon":         lon,
         "_alt":         alt,
-        "_speed":       speed,
-        "_vspeed":      float(raw["V"]) if "V" in raw else None,
-        "_object_type": int(raw["O"])   if "O" in raw else None,
-        "_timestamp":   int(raw["T"])   if "T" in raw else None,
+        "_speed":       speed / 3.6 if speed is not None else None,  # m/s for compatibility
+        "_speed_kmh":   speed,
+        "_vspeed":      vario,
+        "_age":         age,
+        "_object_type": atype,
     }
 
 
-# ── API call ──────────────────────────────────────────────────────────────────
+# -- API call ------------------------------------------------------------------
 
 def fetch_traffic(min_lat: float, max_lat: float,
                   min_lon: float, max_lon: float,
-                  api_key: str,
                   timeout: int = 15) -> list[dict]:
     """
-    Fetch all traffic within the bounding box from PureTrack.
-    Returns parsed list of dicts, empty on any error.
+    Fetch all OGN traffic within the bounding box.
+    Returns parsed list of dicts, empty list on any error.
     """
     params = {
-        "key":   api_key,
-        "lat1":  max_lat,   # NE corner
-        "long1": max_lon,
-        "lat2":  min_lat,   # SW corner
-        "long2": min_lon,
-        "t":     5,         # max age: 5 minutes
+        "a": 1,           # include recently offline
+        "b": max_lat,     # NE corner
+        "c": min_lat,     # SW corner
+        "d": max_lon,
+        "e": min_lon,
     }
     try:
-        resp = requests.get(TRAFFIC_URL, params=params,
+        resp = requests.get(OGN_URL, params=params,
                             headers=HEADERS, timeout=timeout)
         resp.raise_for_status()
-        data = resp.json()
-        raw_list = data.get("data", [])
-        return [_parse_record(r) for r in raw_list if isinstance(r, str)]
+        root = ET.fromstring(resp.content)
+        results = []
+        for m in root.findall("m"):
+            parsed = _parse_marker(m.get("a", ""))
+            if parsed:
+                results.append(parsed)
+        return results
     except Exception as exc:
-        print(f"[puretrack] fetch error: {exc}")
+        print(f"[ogn] fetch error: {exc}")
         return []
 
 
-# ── Paraglider filter ─────────────────────────────────────────────────────────
+# -- Paraglider filter ---------------------------------------------------------
 
 def filter_paragliders(traffic: list[dict]) -> list[dict]:
     """
     Keep only likely paragliders / hang-gliders.
 
-    If PureTrack reports object_type, use it (type 7 = paraglider).
-    If object_type is missing, fall back to altitude + speed heuristic.
+    Uses OGN aircraft type first; falls back to altitude + speed heuristic
+    for type-0 records (anonymous FLARM devices).
     """
     results = []
     for obj in traffic:
-        obj_type = obj.get("_object_type")
+        age   = obj.get("_age", 9999)
+        atype = obj.get("_object_type", 0)
 
-        if obj_type is not None:
-            if obj_type in PARAGLIDER_TYPES:
-                results.append(obj)
-            # Known non-paraglider type — skip
-        else:
-            # Unknown type — apply heuristic
+        if age > MAX_AGE_SECS:
+            continue
+
+        if atype in PARAGLIDER_TYPES:
+            results.append(obj)
+        elif atype == 0:
             alt   = obj.get("_alt")
-            speed = obj.get("_speed")
+            speed_kmh = obj.get("_speed_kmh")
             name  = obj.get("_name", "Unknown")
             if name == "Unknown":
                 continue
             if alt is None or not (MIN_ALT_M <= alt <= MAX_ALT_M):
                 continue
-            if speed is not None and speed > MAX_SPEED_MS:
+            if speed_kmh is not None and speed_kmh > MAX_SPEED_KH:
                 continue
             results.append(obj)
 
     return results
 
 
-# ── Public wrapper ────────────────────────────────────────────────────────────
+# -- Public wrapper ------------------------------------------------------------
 
 def get_paragliders(min_lat: float, max_lat: float,
-                    min_lon: float, max_lon: float,
-                    api_key: str) -> list[dict]:
-    """Fetch traffic and return only likely paragliders."""
-    raw = fetch_traffic(min_lat, max_lat, min_lon, max_lon, api_key)
+                    min_lon: float, max_lon: float) -> list[dict]:
+    """Fetch OGN traffic and return only likely paragliders."""
+    raw = fetch_traffic(min_lat, max_lat, min_lon, max_lon)
     return filter_paragliders(raw)

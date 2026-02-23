@@ -19,9 +19,6 @@ class Config:
     # Secret key for the /api/check monitoring endpoint (called by external cron)
     MONITOR_SECRET = os.environ.get("MONITOR_SECRET", "change-me-monitor-secret")
 
-    # PureTrack API key
-    PURETRACK_API_KEY = os.environ.get("PURETRACK_API_KEY", "")
-
     # Your PythonAnywhere domain (needed to register Telegram webhook)
     # Example: "yourusername.pythonanywhere.com"
     APP_DOMAIN = os.environ.get("APP_DOMAIN", "")

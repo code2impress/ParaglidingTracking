@@ -99,8 +99,9 @@ def _parse_marker(attr: str) -> dict | None:
     except (ValueError, IndexError):
         return None
 
-    # Use callsign as display name; fall back to a human-readable device label
-    name = cn if cn and cn != "0" else _format_device_name(device)
+    # Use callsign as display name; fall back to a human-readable device label.
+    # Reject auto-generated placeholders: empty, "0", or underscore-prefixed (e.g. "_1f").
+    name = cn if cn and cn != "0" and not cn.startswith("_") else _format_device_name(device)
 
     return {
         "_key":         device or cn,

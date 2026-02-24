@@ -66,6 +66,20 @@ MAX_AGE_SECS = 600   # ignore fixes older than 10 minutes
 
 # -- XML parser ----------------------------------------------------------------
 
+# Known device-ID prefixes used by FLARM/OGN trackers.
+# Stripping these gives a shorter, more readable hex identifier.
+_DEVICE_PREFIXES = ("ICA", "FLR", "OGN", "SKY", "PAW", "SAS", "NAV", "RND")
+
+
+def _format_device_name(device: str) -> str:
+    """Turn a cryptic device ID like 'ICA3D1234' into 'Pilot #3D1234'."""
+    upper = device.upper()
+    for prefix in _DEVICE_PREFIXES:
+        if upper.startswith(prefix):
+            return f"Pilot #{device[len(prefix):].upper()}"
+    return f"Pilot #{device}"
+
+
 def _parse_marker(attr: str) -> dict | None:
     """Parse one OGN <m a="..."/> attribute string into a normalised dict."""
     parts = attr.split(",")
@@ -85,8 +99,8 @@ def _parse_marker(attr: str) -> dict | None:
     except (ValueError, IndexError):
         return None
 
-    # Use callsign as display name; fall back to device ID
-    name = cn if cn and cn != "0" else device
+    # Use callsign as display name; fall back to a human-readable device label
+    name = cn if cn and cn != "0" else _format_device_name(device)
 
     return {
         "_key":         device or cn,

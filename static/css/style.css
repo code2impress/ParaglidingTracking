@@ -5,7 +5,7 @@ body {
 
 /* ── Landing hero ───────────────────────────────────────────────────────────── */
 .hero-section {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: linear-gradient(135deg, #0d0d1a 0%, #111827 50%, #0c1f3f 100%);
   color: #fff;
   min-height: 380px;
   display: flex;
@@ -21,9 +21,28 @@ body {
   border-radius: 4px !important;
 }
 
-/* Pilot marker popup */
+/* Pilot marker popup – dark styling */
 .pilot-popup h6 {
   margin-bottom: 2px;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #1a1d2e;
+  color: #c8d0e0;
+  box-shadow: 0 3px 16px rgba(0, 0, 0, 0.7);
+}
+
+.leaflet-popup-close-button {
+  color: #7c8499 !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #c8d0e0 !important;
+}
+
+.pilot-popup strong {
+  color: #90aecf;
 }
 
 /* Zone sidebar */
@@ -31,7 +50,7 @@ body {
   width: 4px;
 }
 #sidebar::-webkit-scrollbar-thumb {
-  background: #ced4da;
+  background: #3a3f52;
   border-radius: 4px;
 }
 
@@ -41,7 +60,7 @@ body {
   justify-content: space-between;
   font-size: 0.78rem;
   padding: 2px 0;
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid var(--bs-border-color);
 }
 .pilot-list .pilot-item:last-child {
   border-bottom: none;
@@ -54,7 +73,7 @@ body {
 
 /* ── Utilities ──────────────────────────────────────────────────────────────── */
 code {
-  background: #f8f9fa;
+  background: var(--bs-tertiary-bg, #f8f9fa);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.9em;
